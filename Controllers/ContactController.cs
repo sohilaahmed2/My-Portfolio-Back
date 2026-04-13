@@ -20,7 +20,7 @@ namespace portfolio.Controllers
         }
 
         [HttpPost("send")]
-        public IActionResult SendEmail([FromBody] ContactForm form)
+        public async Task<IActionResult> SendEmail([FromBody] ContactForm form)
         {
             try
             {
@@ -45,7 +45,7 @@ namespace portfolio.Controllers
                 mailMessage.To.Add(email);
                 mailMessage.ReplyToList.Add(new MailAddress(form.Email));
 
-                smtpClient.Send(mailMessage);
+                smtpClient.SendMailAsync(mailMessage).GetAwaiter().GetResult();
 
                 return Ok("Message sent successfully!");
             }
