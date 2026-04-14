@@ -26,8 +26,8 @@ namespace portfolio.Controllers
 
                 var body = new
                 {
-                    sender = new { email = "YOUR_VERIFIED_EMAIL@domain.com", name = "Portfolio" },
-                    to = new[] { new { email = "YOUR_VERIFIED_EMAIL@domain.com" } },
+                    sender = new { email = "sohila24ahmed@gmail.com", name = "Portfolio" },
+                    to = new[] { new { email = "sohila24ahmed@gmail.com" } },
                     subject = $"New message from {form.Name}",
                     htmlContent = $@"
                         <h3>New Contact Message</h3>
