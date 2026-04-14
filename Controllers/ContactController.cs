@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using portfolio.Models;
-using System.Net;
-using System.Net.Mail;
+using System.Text;
+using System.Text.Json;
 
 namespace portfolio.Controllers
 {
@@ -10,39 +10,52 @@ namespace portfolio.Controllers
     public class ContactController : ControllerBase
     {
         [HttpPost("send")]
-        public IActionResult SendEmail([FromBody] ContactForm form)
+        public async Task<IActionResult> SendEmail([FromBody] ContactForm form)
         {
             try
             {
-                var smtpUser = Environment.GetEnvironmentVariable("SMTP_USER");
-                var smtpPass = Environment.GetEnvironmentVariable("SMTP_PASS");
+                var apiKey = Environment.GetEnvironmentVariable("BREVO_API_KEY");
 
-                var smtpClient = new SmtpClient("smtp-relay.brevo.com")
+                if (string.IsNullOrEmpty(apiKey))
                 {
-                    Port = 587,
-                    Credentials = new NetworkCredential(smtpUser, smtpPass),
-                    EnableSsl = true,
-                    UseDefaultCredentials = false
+                    return StatusCode(500, "BREVO_API_KEY is missing");
+                }
+
+                var client = new HttpClient();
+                client.DefaultRequestHeaders.Add("api-key", apiKey);
+
+                var body = new
+                {
+                    sender = new { email = "YOUR_VERIFIED_EMAIL@domain.com", name = "Portfolio" },
+                    to = new[] { new { email = "YOUR_VERIFIED_EMAIL@domain.com" } },
+                    subject = $"New message from {form.Name}",
+                    htmlContent = $@"
+                        <h3>New Contact Message</h3>
+                        <p><b>Name:</b> {form.Name}</p>
+                        <p><b>Email:</b> {form.Email}</p>
+                        <p><b>Message:</b> {form.Message}</p>
+                    "
                 };
 
-                var mailMessage = new MailMessage
+                var json = JsonSerializer.Serialize(body);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await client.PostAsync(
+                    "https://api.brevo.com/v3/smtp/email",
+                    content
+                );
+
+                if (!response.IsSuccessStatusCode)
                 {
-                    From = new MailAddress(smtpUser),
-                    Subject = $"New message from {form.Name}",
-                    Body = $"From: {form.Name}\nEmail: {form.Email}\n\n{form.Message}",
-                    IsBodyHtml = false,
-                };
-
-                mailMessage.ReplyToList.Add(new MailAddress(form.Email));
-                mailMessage.To.Add(smtpUser);
-
-                smtpClient.Send(mailMessage);
+                    var error = await response.Content.ReadAsStringAsync();
+                    return StatusCode(500, error);
+                }
 
                 return Ok("Message sent successfully!");
             }
             catch (Exception ex)
             {
-                return StatusCode(500, "Error sending message: " + ex.Message);
+                return StatusCode(500, "Error: " + ex.Message);
             }
         }
     }
